@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game List</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    #search-container {
+      margin-bottom: 20px;
+    }
+
+    .letter {
+      display: inline-block;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    #game-list {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    .game-item {
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+
+    #pagination {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Game List</h1>
+  <div id="source-menu">
+    <select id="source-select">
+      <option value="nes">NES</option>
+      <option value="snes">SNES</option>
+      <option value="gba">GBA</option>
+    </select>
+  </div>
+  <div id="search-container">
+    <span class="letter" data-letter="all">All</span>
+    <span class="letter" data-letter="0-9">0-9</span>
+    <span class="letter" data-letter="A">A</span>
+    <span class="letter" data-letter="B">B</span>
+    <!-- Add more letters as needed -->
+    <span class="letter" data-letter="Z">Z</span>
+  </div>
+  <ul id="game-list"></ul>
+  <div id="pagination">
+    <button id="prev-btn" disabled>Prev</button>
+    <button id="next-btn">Next</button>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const itemsPerPage = 10;
+      let currentPage = 1;
+      let games = [];
+      let filteredGames = [];
+      let selectedSource = 'nes';
+      const sourceSelect = document.getElementById('source-select');
+      sourceSelect.addEventListener('change', function() {
+        selectedSource = this.value;
+        loadXML(selectedSource);
+      });
+
+      function loadXML(source) {
+        let url;
+        if (source === 'snes') {
+          url = 'https://raw.githubusercontent.com/mamedev/mame/master/hash/snes.xml';
+        } else if (source === 'gba') {
+          url = 'https://raw.githubusercontent.com/mamedev/mame/master/hash/gba.xml';
+        } else {
+          url = 'https://raw.githubusercontent.com/mamedev/mame/master/hash/nes.xml';
+        }
+        fetch(url)
+          .then(response => response.text())
+          .then(data => {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(data, "text/xml");
+            games = Array.from(xmlDoc.getElementsByTagName('software')).map(software => ({
+              name: software.getAttribute('name'),
+              description: software.getElementsByTagName('description')[0].textContent
+            }));
+            filteredGames = games;
+            displayGames(filteredGames, currentPage);
+          });
+      }
+      loadXML(selectedSource);
+      const letters = document.querySelectorAll('.letter');
+      letters.forEach(letter => {
+        letter.addEventListener('click', () => {
+          const selectedLetter = letter.getAttribute('data-letter');
+          filterGames(selectedLetter);
+        });
+      });
+      document.getElementById('next-btn').addEventListener('click', () => {
+        currentPage++;
+        displayGames(filteredGames, currentPage);
+      });
+      document.getElementById('prev-btn').addEventListener('click', () => {
+        currentPage--;
+        displayGames(filteredGames, currentPage);
+      });
+
+      function displayGames(games, page) {
+        const gameList = document.getElementById('game-list');
+        const startIndex = (page - 1) * itemsPerPage;
+        const endIndex = page * itemsPerPage;
+        const totalPages = Math.ceil(games.length / itemsPerPage);
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        gameList.innerHTML = '';
+        for (let i = startIndex; i < endIndex && i < games.length; i++) {
+          const li = document.createElement('li');
+          li.className = 'game-item';
+          li.textContent = games[i].description;
+          li.addEventListener('click', () => {
+            playGame(games[i].name);
+          });
+          gameList.appendChild(li);
+        }
+        prevBtn.disabled = page === 1;
+        nextBtn.disabled = page === totalPages;
+      }
+
+      function filterGames(letter) {
+        if (letter === 'all') {
+          filteredGames = games;
+        } else if (letter === '0-9') {
+          filteredGames = games.filter(game => /^[0-9]/.test(game.description));
+        } else {
+          filteredGames = games.filter(game => game.description.toUpperCase().startsWith(letter));
+        }
+        currentPage = 1;
+        displayGames(filteredGames, currentPage);
+      }
+
+      function playGame(gameName) {
+        const gameContent = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${gameName}</title>
+                    </head>
+                    <body>
+                        <h1>${gameName}</h1>
+                        <!-- Nội dung và mã JavaScript cho trò chơi -->
+                    </body>
+                    </html>
+                `;
+        const gameWindow = window.open('', '_blank', 'width=800,height=600,resizable=yes,scrollbars=yes');
+        gameWindow.document.open();
+        gameWindow.document.write(gameContent);
+        gameWindow.document.close();
+      }
+    });
+  </script>
+</body>
+
+</html>
